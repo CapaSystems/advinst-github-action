@@ -500,7 +500,7 @@ function run() {
             core.debug(`Advinst enable com: ${enable_com}`);
             const [isDeprecated, minAllowedVer] = yield (0, advinstversions_1.versionIsDeprecated)(version);
             if (isDeprecated) {
-                throw new Error(util_1.default.format(messages_1.ADVINST_VER_DEPRECATION_ERROR, minAllowedVer, version));
+                core.warning(util_1.default.format(messages_1.ADVINST_VER_DEPRECATION_ERROR, minAllowedVer, version));
             }
             core.startGroup('Advanced Installer Tool Deploy');
             const advinstTool = new advinsttool_1.AdvinstTool(version, license, enable_com === 'true');

@@ -20,7 +20,7 @@ async function run(): Promise<void> {
 
     const [isDeprecated, minAllowedVer] = await versionIsDeprecated(version);
     if (isDeprecated) {
-      throw new Error(
+      core.warning(
         util.format(ADVINST_VER_DEPRECATION_ERROR, minAllowedVer, version)
       );
     }
