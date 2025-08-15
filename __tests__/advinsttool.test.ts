@@ -33,10 +33,10 @@ describe('Test AdvinstTool.download', () => {
 
   it('should return downloaded path', async () => {
     mockToolCache.downloadTool.mockResolvedValue('fooToolPath');
-    const advinstTool = new AdvinstTool('19.0', 'fooLicense', false);
+    const advinstTool = new AdvinstTool('19.0.0', 'fooLicense', false);
     const result = await advinstTool.download();
     expect(toolCache.downloadTool).toHaveBeenCalledWith(
-      'https://www.advancedinstaller.com/downloads/19.0/advinst.msi'
+      'https://www.advancedinstaller.com/downloads/19.0.0/advinst.msi'
     );
     expect(result).toBe('fooToolPath');
   });
@@ -44,7 +44,7 @@ describe('Test AdvinstTool.download', () => {
   it('should use a custom url location', async () => {
     process.env.advancedinstaller_url = 'https://example.com/advinst.msi';
     mockToolCache.downloadTool.mockResolvedValue('fooToolPath');
-    const advinstTool = new AdvinstTool('19.0', 'fooLicense', false);
+    const advinstTool = new AdvinstTool('19.0.0', 'fooLicense', false);
     const result = await advinstTool.download();
     expect(toolCache.downloadTool).toHaveBeenCalledWith(
       'https://example.com/advinst.msi'
@@ -64,7 +64,7 @@ describe('Test AdvinstTool.extract', () => {
     });
     mockToolCache.cacheDir.mockResolvedValue('fooCacheDir');
 
-    const advinstTool = new AdvinstTool('19.0', 'fooLicense', false);
+    const advinstTool = new AdvinstTool('19.0.0', 'fooLicense', false);
     const result = await advinstTool.extract('fooSetupPath');
     expect(exec.getExecOutput).toHaveBeenCalledWith(
       'msiexec /a "fooSetupPath" TARGETDIR="fooRunnerTmpDir\\advinst" /qn'
@@ -72,7 +72,7 @@ describe('Test AdvinstTool.extract', () => {
     expect(toolCache.cacheDir).toHaveBeenCalledWith(
       'fooRunnerTmpDir\\advinst',
       'advinst',
-      '19.0',
+      '19.0.0',
       'x86'
     );
     expect(result).toBe('fooCacheDir');
@@ -86,7 +86,7 @@ describe('Test AdvinstTool.extract', () => {
       stderr: 'fooStderr'
     });
 
-    const advinstTool = new AdvinstTool('19.0', 'fooLicense', false);
+    const advinstTool = new AdvinstTool('19.0.0', 'fooLicense', false);
     await expect(advinstTool.extract('fooSetupPath')).rejects.toThrow(
       'fooStdout'
     );
@@ -101,7 +101,7 @@ describe('Test AdvinstTool.register', () => {
       stderr: 'fooStderr'
     });
 
-    const advinstTool = new AdvinstTool('19.0', 'fooLicense', false);
+    const advinstTool = new AdvinstTool('19.0.0', 'fooLicense', false);
     await advinstTool.register('fooToolPath');
     expect(exec.getExecOutput).toHaveBeenCalledWith(
       'fooToolPath /RegisterCI fooLicense'
@@ -115,14 +115,14 @@ describe('Test AdvinstTool.register', () => {
       stderr: 'fooStderr'
     });
 
-    const advinstTool = new AdvinstTool('19.0', 'fooLicense', false);
+    const advinstTool = new AdvinstTool('19.0.0', 'fooLicense', false);
     await expect(advinstTool.register('fooToolPath')).rejects.toThrow(
       'fooStdout'
     );
   });
 
   it('should be skipped because license is empty', async () => {
-    const advinstTool = new AdvinstTool('19.0', '', false);
+    const advinstTool = new AdvinstTool('19.0.0', '', false);
     await advinstTool.register('fooToolPath');
     expect(exec.getExecOutput).not.toHaveBeenCalled();
   });
@@ -136,7 +136,7 @@ describe('Test AdvinstTool.registerCom', () => {
       stderr: 'fooStderr'
     });
 
-    const advinstTool = new AdvinstTool('19.0', '', true);
+    const advinstTool = new AdvinstTool('19.0.0', '', true);
     await advinstTool.registerCom('fooToolPath');
     expect(exec.getExecOutput).toHaveBeenCalledWith('fooToolPath /REGSERVER');
   });
@@ -148,14 +148,14 @@ describe('Test AdvinstTool.registerCom', () => {
       stderr: 'fooStderr'
     });
 
-    const advinstTool = new AdvinstTool('19.0', '', true);
+    const advinstTool = new AdvinstTool('19.0.0', '', true);
     await expect(advinstTool.registerCom('fooToolPath')).rejects.toThrow(
       'fooStdout'
     );
   });
 
   it('should be skipped because registration disabled', async () => {
-    const advinstTool = new AdvinstTool('19.0', '', false);
+    const advinstTool = new AdvinstTool('19.0.0', '', false);
     await advinstTool.registerCom('fooToolPath');
     expect(exec.getExecOutput).not.toHaveBeenCalled();
   });
@@ -163,7 +163,7 @@ describe('Test AdvinstTool.registerCom', () => {
 
 describe('Test AdvinstTool.exportVariables', () => {
   it('should succeed', () => {
-    const advinstTool = new AdvinstTool('19.0', '', false);
+    const advinstTool = new AdvinstTool('19.0.0', '', false);
     advinstTool.exportVariables('fooToolRoot');
     expect(core.exportVariable).toHaveBeenNthCalledWith(
       1,
@@ -201,9 +201,9 @@ describe('Test AdvinstTool.getPath', () => {
     mockToolCache.find.mockReturnValue('fooToolCachePath');
     const toolPath = 'fooToolCachePath\\bin\\x86\\advancedinstaller.com';
 
-    const advinstTool = new AdvinstTool('19.0', 'fooLicense', false);
+    const advinstTool = new AdvinstTool('19.0.0', 'fooLicense', false);
     const result = await advinstTool.getPath();
-    expect(toolCache.find).toHaveBeenCalledWith('advinst', '19.0', 'x86');
+    expect(toolCache.find).toHaveBeenCalledWith('advinst', '19.0.0', 'x86');
     expect(AdvinstTool.prototype.download).not.toHaveBeenCalled();
     expect(AdvinstTool.prototype.extract).not.toHaveBeenCalled();
     expect(AdvinstTool.prototype.register).toHaveBeenCalled();
@@ -215,9 +215,9 @@ describe('Test AdvinstTool.getPath', () => {
 
   it('should download tool and cache it', async () => {
     mockToolCache.find.mockReturnValue('');
-    const advinstTool = new AdvinstTool('19.0', 'fooLicense', false);
+    const advinstTool = new AdvinstTool('19.0.0', 'fooLicense', false);
     const result = await advinstTool.getPath();
-    expect(toolCache.find).toHaveBeenCalledWith('advinst', '19.0', 'x86');
+    expect(toolCache.find).toHaveBeenCalledWith('advinst', '19.0.0', 'x86');
     expect(AdvinstTool.prototype.download).toHaveBeenCalled();
     expect(AdvinstTool.prototype.extract).toHaveBeenCalled();
     expect(AdvinstTool.prototype.register).toHaveBeenCalled();

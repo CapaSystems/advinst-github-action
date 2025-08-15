@@ -235,53 +235,39 @@ class AdvinstTool {
         this.license = license;
         this.enableCom = enableCom;
     }
+    /**
+     * Normalizes version to full SemVer format (MAJOR.MINOR.PATCH) required by tool-cache
+     * @param version Original version string
+     * @returns Normalized version string
+     */
+    normalizeVersionForCache(version) {
+        const parts = version.split('.');
+        // If already in MAJOR.MINOR.PATCH format, return as-is
+        if (parts.length >= 3) {
+            return version;
+        }
+        // If MAJOR.MINOR format, add .0 for patch
+        if (parts.length === 2) {
+            return `${version}.0`;
+        }
+        // If only MAJOR, add .0.0
+        if (parts.length === 1) {
+            return `${version}.0.0`;
+        }
+        // Fallback - return original
+        return version;
+    }
     getPath() {
         return __awaiter(this, void 0, void 0, function* () {
             //Check cache first
             core.info(`Checking cache for advinst tool with version: ${this.version}`);
-            // Diagnostic: Check critical environment variables
-            const runnerToolCache = process.env['RUNNER_TOOL_CACHE'] || '';
-            const runnerTemp = process.env['RUNNER_TEMP'] || '';
-            const agentToolsDirectory = process.env['AGENT_TOOLSDIRECTORY'] || '';
-            core.info(`RUNNER_TOOL_CACHE: ${runnerToolCache || '(not set)'}`);
-            core.info(`RUNNER_TEMP: ${runnerTemp || '(not set)'}`);
-            core.info(`AGENT_TOOLSDIRECTORY: ${agentToolsDirectory || '(not set)'}`);
-            if (!runnerToolCache && !agentToolsDirectory) {
-                core.warning('Neither RUNNER_TOOL_CACHE nor AGENT_TOOLSDIRECTORY is set. Tool cache will not work.');
+            // Normalize version to full SemVer format for tool-cache compatibility
+            // tool-cache requires MAJOR.MINOR.PATCH format
+            const normalizedVersion = this.normalizeVersionForCache(this.version);
+            if (normalizedVersion !== this.version) {
+                core.info(`Normalized version ${this.version} to ${normalizedVersion} for tool-cache compatibility`);
             }
-            // Additional diagnostics: Check the expected cache structure
-            const expectedCachePath = (0, path_1.join)(runnerToolCache, 'advinst', this.version, 'x86');
-            const expectedCompleteFile = `${expectedCachePath}.complete`;
-            core.info(`Expected cache path: ${expectedCachePath}`);
-            core.info(`Expected complete file: ${expectedCompleteFile}`);
-            try {
-                const pathExists = yield (0, utils_1.exists)(expectedCachePath);
-                const completeExists = yield (0, utils_1.exists)(expectedCompleteFile);
-                core.info(`Cache path exists: ${pathExists}`);
-                core.info(`Complete file exists: ${completeExists}`);
-                if (pathExists) {
-                    const toolBinary = (0, path_1.join)(expectedCachePath, 'bin', 'x86', 'advancedinstaller.com');
-                    const binaryExists = yield (0, utils_1.exists)(toolBinary);
-                    core.info(`Tool binary exists: ${binaryExists} (${toolBinary})`);
-                }
-            }
-            catch (error) {
-                core.info(`Error checking cache structure: ${error}`);
-            }
-            let toolRoot = toolCache.find(AdvinstTool.advinstCacheToolName, this.version, AdvinstTool.advinstCacheToolArch);
-            core.info(`toolCache.find result: '${toolRoot}'`);
-            // Additional debugging: Check what findAllVersions returns
-            try {
-                const allVersions = toolCache.findAllVersions(AdvinstTool.advinstCacheToolName, AdvinstTool.advinstCacheToolArch);
-                core.info(`toolCache.findAllVersions result: ${JSON.stringify(allVersions)}`);
-            }
-            catch (error) {
-                core.info(`Error calling findAllVersions: ${error}`);
-            }
-            // Debug: Try to manually construct the path and see if it matches
-            const manualCachePath = (0, path_1.join)(runnerToolCache, 'advinst', this.version, 'x86');
-            core.info(`Manual cache path construction: ${manualCachePath}`);
-            core.info(`Matches expected: ${manualCachePath === expectedCachePath}`);
+            let toolRoot = toolCache.find(AdvinstTool.advinstCacheToolName, normalizedVersion, AdvinstTool.advinstCacheToolArch);
             //If not in cache, download and extract
             if (!toolRoot) {
                 core.info('Tool not found in cache');
@@ -328,7 +314,9 @@ class AdvinstTool {
             if (ret.exitCode !== 0) {
                 throw new Error(ret.stdout);
             }
-            return yield toolCache.cacheDir(extractFolder, AdvinstTool.advinstCacheToolName, this.version, AdvinstTool.advinstCacheToolArch);
+            // Use normalized version for caching to ensure consistency with find operations
+            const normalizedVersion = this.normalizeVersionForCache(this.version);
+            return yield toolCache.cacheDir(extractFolder, AdvinstTool.advinstCacheToolName, normalizedVersion, AdvinstTool.advinstCacheToolArch);
         });
     }
     register(toolPath) {
