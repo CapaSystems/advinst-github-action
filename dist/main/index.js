@@ -402,84 +402,71 @@ var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, ge
     });
 };
 Object.defineProperty(exports, "__esModule", ({ value: true }));
-exports.versionIsDeprecated = exports.getMinAllowedAdvinstVersion = exports.getAll = exports.getLatest = void 0;
+exports.AdvinstVersions = void 0;
 const fs = __importStar(__nccwpck_require__(7147));
 const toolCache = __importStar(__nccwpck_require__(7784));
 const config_ini_parser_1 = __nccwpck_require__(2244);
 const compare_versions_1 = __nccwpck_require__(4773);
 const utils_1 = __nccwpck_require__(918);
 const advinstIniUrlVar = 'advancedinstaller_ini_url';
-const DEFAULT_ADVINST_INI_URL = 'https://www.advancedinstaller.com/downloads/updates.ini';
-function getLatest() {
-    return __awaiter(this, void 0, void 0, function* () {
-        const versions = yield getAll();
-        return versions[0];
-    });
-}
-exports.getLatest = getLatest;
-function getAll() {
-    return __awaiter(this, void 0, void 0, function* () {
-        const versionsFileContent = yield _getUpdatesFileContent();
-        const ini = new config_ini_parser_1.ConfigIniParser();
-        ini.parse(versionsFileContent);
-        const sections = ini.sections();
-        if (sections.length === 0) {
-            throw new Error('Invalid updated config file');
-        }
-        const versions = [];
-        for (const section of sections) {
-            versions.push(ini.get(section, 'ProductVersion'));
-        }
-        return versions;
-    });
-}
-exports.getAll = getAll;
-function getMinAllowedAdvinstVersion() {
-    return __awaiter(this, void 0, void 0, function* () {
-        const RELEASE_INTERVAL_MONTHS = 24;
-        const minReleaseDate = new Date();
-        minReleaseDate.setMonth(minReleaseDate.getMonth() - RELEASE_INTERVAL_MONTHS);
-        const versionsFileContent = yield _getUpdatesFileContent();
-        const ini = new config_ini_parser_1.ConfigIniParser();
-        ini.parse(versionsFileContent);
-        const sections = ini.sections();
-        if (sections.length === 0) {
-            throw new Error('Invalid updated config file');
-        }
-        const r = ini.sections().find(s => {
-            const [day, month, year] = ini.get(s, 'ReleaseDate').split('/');
-            const releaseDate = new Date(`${year}-${month}-${day}`);
-            return minReleaseDate > releaseDate;
+const DEFAULT_ADVINST_INI_URL = 'https://www.advancedinstaller.com/downloads/updates-cicd-integration.ini';
+class AdvinstVersions {
+    constructor() {
+        this._ini = null;
+    }
+    _getIni() {
+        return __awaiter(this, void 0, void 0, function* () {
+            if (!this._ini) {
+                const url = (0, utils_1.getVariable)(advinstIniUrlVar) || DEFAULT_ADVINST_INI_URL;
+                const filePath = yield toolCache.downloadTool(url);
+                const content = _readTextFileWithDetectedEncoding(filePath);
+                const ini = new config_ini_parser_1.ConfigIniParser();
+                ini.parse(content);
+                if (ini.sections().length === 0) {
+                    throw new Error('Invalid updated config file');
+                }
+                this._ini = ini;
+            }
+            return this._ini;
         });
-        if (!r) {
-            return null;
-        }
-        return ini.get(r, 'ProductVersion');
-    });
+    }
+    getAll() {
+        return __awaiter(this, void 0, void 0, function* () {
+            const ini = yield this._getIni();
+            return ini.sections().map(s => ini.get(s, 'ProductVersion'));
+        });
+    }
+    getLatest() {
+        return __awaiter(this, void 0, void 0, function* () {
+            return (yield this.getAll())[0];
+        });
+    }
+    getMinAllowedAdvinstVersion() {
+        return __awaiter(this, void 0, void 0, function* () {
+            const RELEASE_INTERVAL_MONTHS = 24;
+            const minReleaseDate = new Date();
+            minReleaseDate.setMonth(minReleaseDate.getMonth() - RELEASE_INTERVAL_MONTHS);
+            const ini = yield this._getIni();
+            const section = ini.sections().find(s => {
+                const [day, month, year] = ini.get(s, 'ReleaseDate').split('/');
+                return minReleaseDate > new Date(`${year}-${month}-${day}`);
+            });
+            return section ? ini.get(section, 'ProductVersion') : null;
+        });
+    }
+    versionIsDeprecated(version) {
+        return __awaiter(this, void 0, void 0, function* () {
+            const minAllowedVer = yield this.getMinAllowedAdvinstVersion();
+            const isDeprecated = minAllowedVer !== null && (0, compare_versions_1.compareVersions)(version, minAllowedVer) === -1;
+            return [isDeprecated, minAllowedVer];
+        });
+    }
 }
-exports.getMinAllowedAdvinstVersion = getMinAllowedAdvinstVersion;
-function versionIsDeprecated(version) {
-    return __awaiter(this, void 0, void 0, function* () {
-        const minAllowedVer = yield getMinAllowedAdvinstVersion();
-        const isDeprecated = minAllowedVer !== null && (0, compare_versions_1.compareVersions)(version, minAllowedVer) === -1;
-        return [isDeprecated, minAllowedVer];
-    });
-}
-exports.versionIsDeprecated = versionIsDeprecated;
-function _getUpdatesFileContent() {
-    return __awaiter(this, void 0, void 0, function* () {
-        const advinstIniUrl = (0, utils_1.getVariable)(advinstIniUrlVar) || DEFAULT_ADVINST_INI_URL;
-        const updatesFile = yield toolCache.downloadTool(advinstIniUrl);
-        return _readTextFileWithDetectedEncoding(updatesFile);
-    });
-}
+exports.AdvinstVersions = AdvinstVersions;
 function _readTextFileWithDetectedEncoding(filePath) {
     const raw = fs.readFileSync(filePath);
-    const encoding = _hasUtf16LeBom(raw) ? 'utf16le' : 'utf8';
+    const encoding = raw.length >= 2 && raw[0] === 0xff && raw[1] === 0xfe ? 'utf16le' : 'utf8';
     return raw.toString(encoding);
-}
-function _hasUtf16LeBom(raw) {
-    return raw.length >= 2 && raw[0] === 0xff && raw[1] === 0xfe;
 }
 
 
@@ -539,13 +526,14 @@ function run() {
             if (!(0, utils_1.isWindows)()) {
                 throw new Error('This action is only supported on Windows platforms');
             }
-            const version = core.getInput('advinst-version') || (yield (0, advinstversions_1.getLatest)());
+            const versions = new advinstversions_1.AdvinstVersions();
+            const version = core.getInput('advinst-version') || (yield versions.getLatest());
             core.debug(`Advinst version: ${version}`);
             const license = core.getInput('advinst-license');
             core.debug(`Advinst license: ${license}`);
             const enable_com = core.getInput('advinst-enable-automation');
             core.debug(`Advinst enable com: ${enable_com}`);
-            const [isDeprecated, minAllowedVer] = yield (0, advinstversions_1.versionIsDeprecated)(version);
+            const [isDeprecated, minAllowedVer] = yield versions.versionIsDeprecated(version);
             if (isDeprecated) {
                 core.warning(util_1.default.format(messages_1.ADVINST_VER_DEPRECATION_ERROR, minAllowedVer, version));
             }
